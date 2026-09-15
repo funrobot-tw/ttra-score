@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   Dialog,
@@ -19,7 +18,7 @@ import {
   type CheckinStatus,
 } from "./domain";
 import { CheckCircle2 } from "./icons";
-import { awardLabel, validAwardQuotas } from "./award-display";
+import { awardLabel } from "./award-display";
 
 async function rpc<T>(
   name: string,
@@ -230,6 +229,8 @@ type Setting = {
   heat: number;
   quota: number | null;
   merit_quota: number;
+  entrant_count: number;
+  top_half_count: number;
   revision: number;
   published_at: string | null;
 };
@@ -272,8 +273,6 @@ export function AwardPanel({
 }) {
   const [heat, setHeat] = useState(1);
   const [settings, setSettings] = useState<Setting[]>([]);
-  const [quota, setQuota] = useState("");
-  const [meritQuota, setMeritQuota] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -288,9 +287,6 @@ export function AwardPanel({
   const setting = settings.find(
     (s) => s.category_id === categoryId && s.heat === heat,
   );
-  const unsaved =
-    quota !== (setting?.quota?.toString() ?? "") ||
-    meritQuota !== (setting?.quota == null ? "" : String(setting.merit_quota));
   const reload = useCallback(
     async () => setSettings(await rpc<Setting[]>("get_award_settings")),
     [],
@@ -309,8 +305,6 @@ export function AwardPanel({
     };
   }, []);
   useEffect(() => {
-    setQuota(setting?.quota?.toString() ?? "");
-    setMeritQuota(setting?.quota == null ? "" : String(setting.merit_quota));
     setPreview(null);
     setConfirmed(false);
     setMessage("");
@@ -367,36 +361,24 @@ export function AwardPanel({
               ))}
             </NativeSelect>
           </label>
-          <label className="field">
+          <div className="field">
             <span>名次名額</span>
-            <Input
-              type="number"
-              min={0}
-              max={500}
-              step={1}
-              value={quota}
-              disabled={busy || disabled}
-              placeholder="待官方確認"
-              onChange={(e) => setQuota(e.target.value)}
-            />
-          </label>
-          <label className="field">
+            <strong>每梯次前 3 名</strong>
+          </div>
+          <div className="field">
             <span>佳作名額</span>
-            <Input
-              type="number"
-              min={0}
-              max={500}
-              step={1}
-              value={meritQuota}
-              disabled={busy || disabled}
-              placeholder="待官方確認"
-              onChange={(e) => setMeritQuota(e.target.value)}
-            />
-          </label>
+            <strong>
+              {setting?.entrant_count == null
+                ? "載入中…"
+                : `${setting.merit_quota} 人（自動計算）`}
+            </strong>
+          </div>
         </div>
         <p className="hint">
-          佳作依成績接續名次獎選取，只顯示「佳作」。不設某獎項請填
-          0；尚未確定請留白。同分跨越名次／佳作或得獎分界時，請先取得官方裁定。
+          依本梯次全部名單人數取前 50%（小數進位），排除前三名後為佳作。
+          {setting?.entrant_count != null &&
+            `本梯 ${setting.entrant_count} 人，前 50% 為 ${setting.top_half_count} 人，佳作 ${setting.merit_quota} 人。`}
+          同分跨越名次／佳作或得獎分界時，暫停公布，請先取得主辦單位裁定。
         </p>
         <p>
           {setting?.published_at
@@ -412,31 +394,7 @@ export function AwardPanel({
             重新載入
           </Button>
           <Button
-            variant="outline"
-            disabled={
-              disabled ||
-              busy ||
-              !setting ||
-              !validAwardQuotas(quota, meritQuota)
-            }
-            onClick={() =>
-              void action(async () => {
-                await rpc("set_award_quotas", {
-                  p_category: categoryId,
-                  p_heat: heat,
-                  p_quota: Number(quota),
-                  p_merit_quota: Number(meritQuota),
-                  p_expected_revision: setting!.revision,
-                });
-                await reload();
-                setMessage("名額已儲存，尚未公告。");
-              })
-            }
-          >
-            儲存名額
-          </Button>
-          <Button
-            disabled={disabled || busy || setting?.quota == null || unsaved}
+            disabled={disabled || busy || setting?.entrant_count == null}
             onClick={() =>
               void action(async () => {
                 const data = await rpc<AwardPreview>("preview_awards", {
@@ -453,7 +411,7 @@ export function AwardPanel({
           </Button>
           <Button
             variant="outline"
-            disabled={disabled || busy || !settings.length || unsaved}
+            disabled={disabled || busy || setting?.entrant_count == null}
             onClick={() =>
               void action(async () => {
                 const all = await rpc<{
@@ -486,7 +444,7 @@ export function AwardPanel({
           </Button>
         </div>
         <p className="hint">
-          統一公告會一次處理所有已有名單的排名梯次。請先儲存各梯次名額；幼兒不列入。
+          統一公告會依最新名單與成績重新計算所有排名梯次的得獎者；幼兒不列入。
         </p>
         {error && (
           <p className="error-message" role="alert">

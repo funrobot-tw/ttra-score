@@ -48,8 +48,8 @@ export function categoryStats(
 export type AttemptStatus = "valid" | "invalid" | "terminated";
 export const failureReasons: Record<CategoryId, string[]> = {
   preschool: [],
-  power: ["超過邊界", "車體鬆脫"],
-  program: ["超過邊界", "車體鬆脫"],
+  power: ["超過邊界", "車體鬆脫", "飲料罐掉落"],
+  program: ["超過邊界", "車體鬆脫", "飲料罐掉落"],
   creative: ["車體掉出場地", "零件脫落", "翻覆"],
 };
 export type Attempt = {
@@ -189,7 +189,7 @@ export function teamResult(
         (a) =>
           a.status === "valid" &&
           n(a, "completed") === 1 &&
-          n(a, "seconds") <= 40,
+          n(a, "seconds") <= 25,
       )
       .sort((a, b) => n(a, "seconds") - n(b, "seconds"));
     const best = valid[0],
@@ -199,7 +199,7 @@ export function teamResult(
       team,
       primary: seconds,
       secondary: weight,
-      qualified: seconds !== null && seconds <= 20,
+      qualified: seconds !== null && seconds <= 25,
       complete: rows.length >= 2,
       summary:
         seconds === null
@@ -371,11 +371,11 @@ export function validateScore(
     return "請輸入瓶數與 0.1–30 秒內的有效成績";
   if (
     category === "program" &&
-    (!number("seconds", 0.1, 40) ||
+    (!number("seconds", 0.1, 25) ||
       !number("weight", 0.1, 100000) ||
       data.completed !== 1)
   )
-    return "請確認完成，並輸入 0.1–40 秒及車頭重量";
+    return "請確認完成，並輸入 0.1–25 秒及車頭重量";
   if (
     category === "creative" &&
     (!number("regular", 0, 8, true) ||

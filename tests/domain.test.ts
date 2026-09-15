@@ -52,6 +52,63 @@ const attempt = (
   data,
 });
 describe("四組規則", () => {
+  it("程式完成回合限時 25 秒，未完成可留空或保留超時秒數", () => {
+    expect(
+      validateScore(
+        "program",
+        "valid",
+        {
+          completed: 1,
+          seconds: 25,
+          weight: 100,
+        },
+        "",
+      ),
+    ).toBeNull();
+    expect(
+      validateScore(
+        "program",
+        "valid",
+        {
+          completed: 1,
+          seconds: 25.1,
+          weight: 100,
+        },
+        "",
+      ),
+    ).not.toBeNull();
+    for (const seconds of [undefined, 60]) {
+      const data = {
+        weight: 100,
+        failureReason: "飲料罐掉落",
+        ...(seconds === undefined ? {} : { seconds }),
+      };
+      expect(validateScore("program", "invalid", data, "")).toBeNull();
+    }
+    expect(
+      teamResult(team("program"), [
+        attempt("program", { completed: 1, seconds: 26, weight: 100 }),
+      ]).primary,
+    ).toBeNull();
+  });
+  it("飲料罐掉落只新增於動力及程式的未完成原因", () => {
+    expect(failureReasons.power).toContain("飲料罐掉落");
+    expect(failureReasons.program).toContain("飲料罐掉落");
+    expect(failureReasons.preschool).not.toContain("飲料罐掉落");
+    expect(failureReasons.creative).not.toContain("飲料罐掉落");
+    expect(
+      validateScore(
+        "power",
+        "invalid",
+        {
+          bottles: 3,
+          seconds: 60,
+          failureReason: "飲料罐掉落",
+        },
+        "",
+      ),
+    ).toBeNull();
+  });
   it("家長端姓名只遮住第二個字元", () => {
     expect(maskParticipantName("王小明")).toBe("王o明");
     expect(maskParticipantName("歐陽小明")).toBe("歐o小明");
@@ -102,7 +159,7 @@ describe("四組規則", () => {
         attempt("power", { bottles: 99, seconds: 1 }, "pull-1", "invalid"),
       ]).qualified,
     ).toBe(false));
-  it("程式取有效最快，20 秒內合格、40 秒內有效", () => {
+  it("程式取有效最快，25 秒內完成即合格", () => {
     expect(
       teamResult(team("program"), [
         attempt("program", { completed: 1, seconds: 20, weight: 500 }),
@@ -110,9 +167,9 @@ describe("四組規則", () => {
     ).toMatchObject({ primary: 20, qualified: true });
     expect(
       teamResult(team("program"), [
-        attempt("program", { completed: 1, seconds: 40, weight: 500 }),
+        attempt("program", { completed: 1, seconds: 25, weight: 500 }),
       ]),
-    ).toMatchObject({ primary: 40, qualified: false });
+    ).toMatchObject({ primary: 25, qualified: true });
   });
   it("同時間以重量比序，完全相同採 1,2,2,4", () => {
     const ts = ["1", "2", "3", "4"].map((id) => team("program", id)),

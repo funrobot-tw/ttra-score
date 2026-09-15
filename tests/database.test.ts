@@ -96,6 +96,7 @@ beforeAll(async () => {
     "010_rewards_and_award_publication.sql",
     "011_rank_and_merit_awards.sql",
     "012_academic_public_privacy.sql",
+    "013_program_time_and_failure_reasons.sql",
   ])
     await db.exec(
       readFileSync(
@@ -430,6 +431,57 @@ describe("挑戰賽新版規則、飲料與公告", () => {
           }),
         ).rejects.toThrow();
     }
+  });
+  it("程式上限 25 秒，新增掉罐原因且未完成秒數不受限", async () => {
+    const normalize = async (category: string, status: string, data: object) =>
+      (
+        await db.query<{ value: Record<string, unknown> }>(
+          "select private.normalize_score($1,$2,$3::jsonb) value",
+          [category, status, JSON.stringify(data)],
+        )
+      ).rows[0].value;
+    expect(
+      await normalize("program", "valid", {
+        completed: 1,
+        weight: 100,
+        seconds: 25,
+      }),
+    ).toMatchObject({ seconds: 25 });
+    await expect(
+      normalize("program", "valid", {
+        completed: 1,
+        weight: 100,
+        seconds: 25.1,
+      }),
+    ).rejects.toThrow();
+    for (const category of ["power", "program"]) {
+      const data = { bottles: 2, weight: 100, failureReason: "飲料罐掉落" };
+      expect(await normalize(category, "invalid", data)).not.toHaveProperty(
+        "seconds",
+      );
+      expect(
+        await normalize(category, "invalid", { ...data, seconds: 60 }),
+      ).toMatchObject({ seconds: 60, failureReason: "飲料罐掉落" });
+    }
+    await expect(
+      normalize("creative", "invalid", {
+        regular: 2,
+        red: "none",
+        blue: "none",
+        failureReason: "飲料罐掉落",
+      }),
+    ).rejects.toThrow();
+    expect(
+      await normalize("creative", "valid", {
+        regular: 2,
+        red: "none",
+        blue: "none",
+        seconds: 40,
+      }),
+    ).toMatchObject({ seconds: 40 });
+    expect(
+      await normalize("power", "valid", { bottles: 2, seconds: 30 }),
+    ).toMatchObject({ seconds: 30 });
   });
   it("幼兒無未完成、科創無提前終止；正常回合仍須遵守時限", async () => {
     const child = await createTeam("preschool");

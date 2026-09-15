@@ -259,7 +259,7 @@ export function ScoreForm({
                   "seconds",
                   validStatus ? "完成時間（秒）" : "實際秒數（可留空）",
                   validStatus ? 0.1 : 0,
-                  validStatus ? 40 : undefined,
+                  validStatus ? 25 : undefined,
                   0.1,
                 )}
                 {numeric("weight", "車頭淨重（g，無板車）", 0.1, 100000, 0.1)}
@@ -327,7 +327,7 @@ export function ScoreForm({
         )}
         {team.categoryId === "program" && validStatus && (
           <p className="hint">
-            正常完成代表已自主折返回到起點。20 秒內合格，超過 40
+            正常完成代表已自主折返回到起點。25 秒內完成即合格，超過 25
             秒不列有效成績。重量應使用賽前同一次量測值。
           </p>
         )}

@@ -98,7 +98,9 @@ describe("非瀏覽器渲染檢查", () => {
     expect(html).not.toContain("官方確認的獎狀名額");
     expect(html).toContain("預覽公告名單");
     expect(html).toContain("預覽全賽事統一公告");
-    expect(html).toContain("不設某獎項請填 0");
+    expect(html).toContain("每梯次前 3 名");
+    expect(html).toContain("50%（小數進位）");
+    expect(html).not.toContain("儲存名額");
   });
   it("家長入口可渲染且示範模式清楚標示", () => {
     vi.stubGlobal("location", { hash: "#/" });
@@ -117,6 +119,9 @@ describe("非瀏覽器渲染檢查", () => {
     expect(html).toContain('aria-label="第 2 梯名單"');
     expect(html).not.toContain("名次");
     expect(html).toContain("名單依參賽編號排列");
+    expect(html).toContain(
+      "「臺中市政府數位發展局獎狀」（每梯次前三名及分數排序前50%為佳作）",
+    );
     expect(html).toContain("機A001");
     expect(html).not.toContain("我的關注");
     expect(html).not.toContain("取消關注");
