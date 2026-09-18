@@ -23,6 +23,13 @@ import {
   type AttemptStatus,
 } from "./domain";
 import type { SaveInput } from "./data";
+import {
+  bothConfirmed,
+  confirmScore,
+  emptyConfirmation,
+  type ConfirmationRole,
+  type ScoreConfirmation,
+} from "./score-confirmation";
 export function ScoreForm({
   team,
   attempts,
@@ -53,10 +60,25 @@ export function ScoreForm({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [confirmations, setConfirmations] = useState(emptyConfirmation);
+  const confirmationsRef = useRef(emptyConfirmation());
+  const submitting = useRef(false);
   const [success, setSuccess] = useState("");
   const expectedRevision = useRef(existing?.revision ?? (existing ? 1 : 0));
   const request = useRef<{ signature: string; id: string } | null>(null);
+  function resetConfirmations(signature = "") {
+    const next = emptyConfirmation(signature);
+    confirmationsRef.current = next;
+    setConfirmations(next);
+  }
+  function closeConfirmation() {
+    if (submitting.current) return;
+    setConfirm(false);
+    resetConfirmations();
+  }
   function selectSlot(value: string) {
+    if (submitting.current) return;
+    closeConfirmation();
     setSlot(value);
     const old = attempts.find(
       (a) => a.teamId === team.id && a.slotKey === value,
@@ -117,9 +139,41 @@ export function ScoreForm({
       return;
     }
     setError("");
+    resetConfirmations(scoreSignature());
     setConfirm(true);
   }
-  async function submit() {
+  function scoreSignature() {
+    return JSON.stringify({
+      team: team.id,
+      slot,
+      status,
+      data: normalizeScore(status, data),
+      reason,
+      revision: expectedRevision.current,
+    });
+  }
+  function confirmRole(role: ConfirmationRole) {
+    if (disabled || submitting.current || !confirm) return;
+    const signature = scoreSignature();
+    const next = confirmScore(confirmationsRef.current, signature, role);
+    confirmationsRef.current = next;
+    setConfirmations(next);
+    if (bothConfirmed(next, signature)) void submit(next);
+  }
+  async function submit(approval: ScoreConfirmation) {
+    if (disabled || submitting.current || !confirm) return;
+    if (!bothConfirmed(approval, scoreSignature())) {
+      resetConfirmations(scoreSignature());
+      setError("成績已變更，請裁判與選手重新確認");
+      return;
+    }
+    const validation = validateScore(team.categoryId, status, data, reason);
+    if (validation || (expectedRevision.current > 0 && !reason.trim())) {
+      resetConfirmations();
+      setError(validation || "修改既有成績必須填寫原因");
+      return;
+    }
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -150,16 +204,19 @@ export function ScoreForm({
         data: clean,
         requestId: request.current.id,
         expectedRevision: expectedRevision.current,
+        confirmations: { judge: true, participant: true },
       });
       expectedRevision.current += 1;
       setData(clean);
       setSuccess("成績已儲存並公開");
       setReason("");
       setConfirm(false);
+      resetConfirmations();
       request.current = null;
     } catch (e) {
       setError((e as Error).message || "送出失敗，請重試；內容仍保留");
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -369,24 +426,20 @@ export function ScoreForm({
           onClick={prepare}
         >
           <Save size={16} />
-          {disabled
-            ? "目前無法送出"
-            : existing
-              ? "確認修改成績"
-              : "確認並發布成績"}
+          {disabled ? "目前無法送出" : existing ? "核對修改成績" : "核對成績"}
         </Button>
       </div>
       <Dialog
         open={confirm}
         onOpenChange={(v) => {
-          if (!busy) setConfirm(v);
+          if (!v) closeConfirmation();
         }}
       >
         <DialogContent>
-          <DialogTitle>確認公開成績？</DialogTitle>
+          <DialogTitle>裁判與選手確認成績</DialogTitle>
           <DialogDescription>
             {team.number} {team.name} · {slots.find((s) => s[0] === slot)?.[1]}
-            。送出後家長會立即看到本次成績。
+            。請雙方核對下方成績。兩個按鈕都確認後即送出，家長會立即看到本次成績。
           </DialogDescription>
           <div className="confirm-data">
             {status === "invalid" && (
@@ -421,6 +474,52 @@ export function ScoreForm({
                 </div>
               ))}
           </div>
+          <p className="hint">
+            請由選手本人按下「選手確認」代替簽名，表示已核對本回合成績。返回修改後須由雙方重新確認。
+          </p>
+          <div className="score-confirmations">
+            <Button
+              variant={confirmations.judge ? "outline" : "default"}
+              disabled={busy || disabled || confirmations.judge}
+              aria-pressed={confirmations.judge}
+              onClick={() => confirmRole("judge")}
+            >
+              {confirmations.judge ? (
+                <>
+                  <Check size={18} />
+                  裁判已確認
+                </>
+              ) : (
+                "裁判確認"
+              )}
+            </Button>
+            <Button
+              variant={confirmations.participant ? "outline" : "default"}
+              disabled={busy || disabled || confirmations.participant}
+              aria-pressed={confirmations.participant}
+              onClick={() => confirmRole("participant")}
+            >
+              {confirmations.participant ? (
+                <>
+                  <Check size={18} />
+                  選手已確認
+                </>
+              ) : (
+                "選手確認"
+              )}
+            </Button>
+          </div>
+          <p className="hint" role="status" aria-live="polite">
+            {busy
+              ? "雙方已確認，正在送出…"
+              : confirmations.judge && confirmations.participant
+                ? "雙方已確認；若送出失敗，可重試或返回檢查。"
+                : confirmations.judge
+                  ? "等待選手確認"
+                  : confirmations.participant
+                    ? "等待裁判確認"
+                    : "等待裁判與選手確認"}
+          </p>
           {error && (
             <p role="alert" className="error-message">
               {error}
@@ -430,13 +529,18 @@ export function ScoreForm({
             <Button
               variant="outline"
               disabled={busy}
-              onClick={() => setConfirm(false)}
+              onClick={closeConfirmation}
             >
               返回檢查
             </Button>
-            <Button disabled={busy || disabled} onClick={submit}>
-              {busy ? "正在送出…" : "送出並公開"}
-            </Button>
+            {error && bothConfirmed(confirmations, scoreSignature()) && (
+              <Button
+                disabled={busy || disabled}
+                onClick={() => void submit(confirmationsRef.current)}
+              >
+                重試送出
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

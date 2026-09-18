@@ -58,6 +58,7 @@ function input(
     score_data,
     request_id: crypto.randomUUID(),
     expected_revision: 0,
+    confirmations: { judge: true, participant: true },
   };
 }
 async function submit(p: ReturnType<typeof input>) {
@@ -97,6 +98,7 @@ beforeAll(async () => {
     "011_rank_and_merit_awards.sql",
     "012_academic_public_privacy.sql",
     "013_program_time_and_failure_reasons.sql",
+    "015_dual_score_confirmation.sql",
   ])
     await db.exec(
       readFileSync(
@@ -133,6 +135,93 @@ async function rpcResult(name: string, args: unknown[] = []) {
     )
   ).rows[0].value;
 }
+describe("四組送分均需雙方確認", () => {
+  it.each(["preschool", "power", "program", "creative"])(
+    "%s 缺一確認不儲存；雙方確認後保留紀錄並可安全重試",
+    async (category) => {
+      const id = await createTeam(category);
+      const slot =
+        category === "power"
+          ? "pull-1"
+          : category === "creative"
+            ? "left"
+            : "round-1";
+      const data =
+        category === "preschool"
+          ? { childGoals: 2, parentGoals: 1 }
+          : category === "power"
+            ? { bottles: 7, seconds: 30 }
+            : category === "program"
+              ? { completed: 1, seconds: 25, weight: 300 }
+              : { regular: 5, red: "none", blue: "none", seconds: 40 };
+      const p = input(id, category, slot, data);
+      for (const confirmations of [
+        undefined,
+        null,
+        {},
+        { judge: true },
+        { participant: true },
+        { judge: "true", participant: true },
+        { judge: true, participant: false },
+      ]) {
+        await expect(
+          submit({ ...p, confirmations: confirmations as any }),
+        ).rejects.toThrow("雙方確認");
+      }
+      expect(
+        (await db.query("select * from public.attempts where team_id=$1", [id]))
+          .rows,
+      ).toHaveLength(0);
+      const saved = await submit(p);
+      expect(saved.revision).toBe(1);
+      expect(await submit(p)).toEqual(saved);
+      const audit = (await rpcResult("read_audit")).filter(
+        (row: any) => row.action === "score_create",
+      );
+      expect(audit).toHaveLength(1);
+      expect(audit[0].new_value.confirmations).toEqual({
+        judge: true,
+        participant: true,
+        method: "two_button_confirmation",
+        recorded_at: saved.submitted_at,
+      });
+      await expect(
+        submit({
+          ...p,
+          expected_revision: 1,
+          request_id: crypto.randomUUID(),
+          reason: "更正",
+          confirmations: { judge: true, participant: false },
+        }),
+      ).rejects.toThrow("雙方確認");
+      const edited = await submit({
+        ...p,
+        expected_revision: 1,
+        request_id: crypto.randomUUID(),
+        reason: "再次核對後更正",
+      });
+      expect(edited.revision).toBe(2);
+      expect(
+        (await rpcResult("read_audit")).filter(
+          (row: any) => row.action === "score_update",
+        )[0].new_value.confirmations.participant,
+      ).toBe(true);
+    },
+  );
+  it("未完成回合也不能略過選手確認", async () => {
+    const id = await createTeam();
+    const p = {
+      ...input(id),
+      status: "invalid",
+      reason: "飲料罐掉落",
+      score_data: { bottles: 2, failureReason: "飲料罐掉落" },
+    };
+    await expect(
+      submit({ ...p, confirmations: { judge: true, participant: false } }),
+    ).rejects.toThrow("雙方確認");
+    expect((await submit(p)).status).toBe("invalid");
+  });
+});
 describe("名次名額與佳作名額", () => {
   async function entrants(times = [10, 11, 12, 13, 14, 15]) {
     const ids: string[] = [];

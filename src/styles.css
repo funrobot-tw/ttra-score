@@ -447,6 +447,23 @@ a:focus-visible {
   gap: 15px;
   margin-bottom: 20px;
 }
+.score-confirmations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.score-confirmations button {
+  min-height: 3.25rem;
+  font-size: 1.05rem;
+  white-space: normal;
+}
+.score-confirmations button[aria-pressed="true"] {
+  opacity: 1;
+  color: #17643d;
+  background: #def5e7;
+  border-color: #68aa83;
+}
 .confirm-data {
   background: #f5f6f0;
   padding: 16px;

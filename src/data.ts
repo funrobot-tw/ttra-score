@@ -39,6 +39,7 @@ export type SaveInput = {
   data: Record<string, number | string | boolean>;
   requestId: string;
   expectedRevision: number;
+  confirmations: { judge: true; participant: true };
 };
 export type ImportTeam = {
   number: string;
@@ -156,6 +157,11 @@ export async function setCheckin(teamId: string, status: CheckinStatus) {
   if (error) throw error;
 }
 export async function saveAttempt(input: SaveInput): Promise<Attempt | null> {
+  if (
+    input.confirmations?.judge !== true ||
+    input.confirmations?.participant !== true
+  )
+    throw new Error("請裁判與選手雙方確認成績後再送出");
   if (isDemoMode) return null;
   const { data, error } = await supabase!.rpc("submit_attempt", {
     p_input: {
@@ -168,6 +174,7 @@ export async function saveAttempt(input: SaveInput): Promise<Attempt | null> {
       score_data: input.data,
       request_id: input.requestId,
       expected_revision: input.expectedRevision,
+      confirmations: input.confirmations,
     },
   });
   if (error) throw error;

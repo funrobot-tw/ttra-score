@@ -29,7 +29,7 @@ begin
     'status',case when slot like 'pull%' then 'invalid' else 'valid' end,'reason','回滾測試，不保留',
     'score_data',case when slot='pull-1' then '{"bottles":9,"seconds":71.5,"failureReason":"超過邊界"}'::jsonb
       when slot='pull-2' then '{"bottles":8,"failureReason":"車體鬆脫"}'::jsonb else '{"bottles":8,"seconds":20}'::jsonb end,
-    'request_id',gen_random_uuid(),'expected_revision',0));
+    'request_id',gen_random_uuid(),'expected_revision',0,'confirmations','{"judge":true,"participant":true}'::jsonb));
    if slot='pull-1' and saved->'score_data'->>'seconds' is distinct from '71.5' then raise exception 'Actual seconds not retained';end if;
    if slot='pull-2' and saved->'score_data' ? 'seconds' then raise exception 'Missing time was filled';end if;
   end loop;
@@ -42,7 +42,7 @@ begin
   if saved->>'claimed' is distinct from 'false' or saved->>'revision' is distinct from '2' then raise exception 'Claim correction failed';end if;
   -- Give only the synthetic entrant a valid pull, so a preview always exists.
   perform public.submit_attempt(jsonb_build_object('team_id',entrant_id,'category_id','power','slot_key','pull-1','attempt_no',1,
-   'status','valid','reason','回滾測試更正，不保留','score_data','{"bottles":7,"seconds":20}'::jsonb,'request_id',gen_random_uuid(),'expected_revision',1));
+   'status','valid','reason','回滾測試更正，不保留','score_data','{"bottles":7,"seconds":20}'::jsonb,'request_id',gen_random_uuid(),'expected_revision',1,'confirmations','{"judge":true,"participant":true}'::jsonb));
   select value into setting from jsonb_array_elements(public.get_award_settings()) where value->>'category_id'='power' and value->>'heat'='1';
   perform public.set_award_quota('power',1,500,(setting->>'revision')::integer);
   preview=public.preview_awards('power',1);

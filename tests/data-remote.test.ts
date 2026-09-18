@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock("../src/supabase", () => ({ isDemoMode: false, supabase: { rpc } }));
-import { invalidateScoreboard, loadData, mapAttempt } from "../src/data";
+import {
+  invalidateScoreboard,
+  loadData,
+  mapAttempt,
+  saveAttempt,
+} from "../src/data";
 beforeEach(() => {
   invalidateScoreboard();
   rpc.mockReset();
@@ -26,6 +31,31 @@ const response = (name: string, version = 1) => ({
   error: null,
 });
 describe("依登入身份隔離公開快照快取", () => {
+  it("送分將裁判與選手確認隨同本回合內容送至後端", async () => {
+    rpc.mockResolvedValueOnce({
+      data: { score_data: { childGoals: 1, parentGoals: 0 } },
+      error: null,
+    });
+    await saveAttempt({
+      teamId: "child",
+      categoryId: "preschool",
+      slotKey: "round-1",
+      attemptNo: 1,
+      status: "valid",
+      reason: "",
+      data: { childGoals: 1, parentGoals: 0 },
+      requestId: "request",
+      expectedRevision: 0,
+      confirmations: { judge: true, participant: true },
+    });
+    expect(rpc).toHaveBeenCalledWith("submit_attempt", {
+      p_input: expect.objectContaining({
+        confirmations: { judge: true, participant: true },
+        team_id: "child",
+        expected_revision: 0,
+      }),
+    });
+  });
   it("登入身份改變，即使分數版本相同也重新取資料", async () => {
     rpc.mockResolvedValueOnce(response("王小明"));
     expect((await loadData()).teams[0].name).toBe("王小明");

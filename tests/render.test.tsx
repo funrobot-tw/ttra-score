@@ -212,7 +212,7 @@ describe("非瀏覽器渲染檢查", () => {
         />,
       );
       expect(html).toContain("陳宥安");
-      expect(html).toContain("確認並發布成績");
+      expect(html).toContain("核對成績");
       expect(html).not.toContain("NaN");
       expect(html).not.toContain("提前終止");
       if (c.id === "preschool") expect(html).not.toContain("回合狀態");
