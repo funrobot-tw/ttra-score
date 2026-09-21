@@ -40,7 +40,9 @@
 
 先發布支援合格結果的前端，再於既有專案執行 `supabase/migrations/012_academic_public_privacy.sql`。此更新不變動名單、分數及公布狀態；公開 RPC 僅回傳第二字為 `o` 的姓名與 `passed`（已公布分數 ≥ 80），並撤銷家長直接讀取原始成績表的權限。裁判仍透過授權工作台取得完整姓名與數字分數。已開啟的舊頁面請重新整理。
 
-長期使用的 repository 為 `JulianLu1028/ttra-score`，正式版沿用原 repository 和網址，不再部署示範版。
+長期使用的 repository 為 `funrobot-tw/ttra-score`。2026/09/21 從個人帳號轉移至公司 Organization，使用公司 GitHub Pages 網址，不部署示範版。
+
+Supabase 原專案 `ydwspournjyxsupuaqbs` 已轉入公司 `funrobot-tw` Organization（`bongyuyqyubrlhkigdew`），沒有重建資料庫或重跑 migration；原專案 URL、公開連線設定、Auth、角色、成績與歷史紀錄沿用。GitHub Pages 舊網址不會自動轉址，Linkt 與已分享連結需改用以下公司網址。兩邊維持 Free 方案，目前仍由原管理員登入帳號管理公司 Organization。
 
 1. 本資料夾內容放在 repository 根目錄，預設 branch 為 main；不提交 `.env.local`、真實參賽名單、私密金鑰或 `node_modules`。
 2. Settings / Pages：Source 選 GitHub Actions。
@@ -52,8 +54,8 @@
 
 Linkt 放入兩個家長端連結：
 
-- 挑戰賽：https://JulianLu1028.github.io/ttra-score/#/challenge
-- 檢定：https://JulianLu1028.github.io/ttra-score/#/exam
+- 挑戰賽：https://funrobot-tw.github.io/ttra-score/#/challenge
+- 檢定：https://funrobot-tw.github.io/ttra-score/#/exam
 
 工作人員分別使用 /#/challenge/staff 與 /#/exam/staff。舊 /#/、/#/staff 保留相容。
 

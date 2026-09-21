@@ -47,12 +47,12 @@
 
 ## 上線與測試
 
-長期 repository：[JulianLu1028/ttra-score](https://github.com/JulianLu1028/ttra-score)。正式版沿用原 repository 與 GitHub Pages 網址，不再提供示範部署。
+長期 repository：[funrobot-tw/ttra-score](https://github.com/funrobot-tw/ttra-score)。2026/09/21 將原 repository 轉移至公司 Organization，保留原有提交紀錄；正式網站使用公司 GitHub Pages 網址，不提供示範部署。
 
 家長入口（也可放入 Linkt）：
 
-- [挑戰賽](https://julianlu1028.github.io/ttra-score/#/challenge)
-- [檢定學科](https://julianlu1028.github.io/ttra-score/#/exam)
+- [挑戰賽](https://funrobot-tw.github.io/ttra-score/#/challenge)
+- [檢定學科](https://funrobot-tw.github.io/ttra-score/#/exam)
 
 參閱 [DEPLOYMENT.md](DEPLOYMENT.md) 與 [RULES.md](RULES.md)。
 
