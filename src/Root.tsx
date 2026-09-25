@@ -12,7 +12,7 @@ export default function Root() {
   const academic = hash.startsWith("#/exam");
   useEffect(() => {
     document.title = academic
-      ? "2026 TTRA｜檢定學科成績"
+      ? "2026 TTRA｜檢定成績"
       : "2026 TTRA｜主題挑戰賽即時成績";
   }, [academic]);
   if (!backendConfigured && !isDemoMode)

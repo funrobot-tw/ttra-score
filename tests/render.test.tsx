@@ -258,12 +258,12 @@ describe("非瀏覽器渲染檢查", () => {
 it("學科家長入口不渲染內部登分功能", () => {
   vi.stubGlobal("navigator", { onLine: true });
   const html = renderToString(<AcademicApp staffView={false} />);
-  expect(html).toContain("檢定學科成績");
+  expect(html).toContain("檢定成績");
   expect(html).toContain("一級檢定");
   expect(html).toContain("二級檢定");
   expect(html).toContain('class="academic-theme academic-shell"');
-  expect(html).not.toContain("公布全部學科成績");
-  expect(html).not.toContain("目前分數（內部）");
+  expect(html).not.toContain("公布全部檢定成績");
+  expect(html).not.toContain("學科（內部）");
   expect(html).not.toContain("工作人員入口");
   expect(html).not.toMatch(/href="[^"]*\/staff"/);
 });
@@ -280,18 +280,18 @@ it("學科裁判入口與家長入口使用相同的獨立配色", () => {
   vi.stubGlobal("navigator", { onLine: true });
   const html = renderToString(<AcademicApp staffView={true} />);
   expect(html).toContain('class="academic-theme academic-shell"');
-  expect(html).toContain("學科成績工作台");
+  expect(html).toContain("檢定成績工作台");
   expect(html).toContain("最近 10 筆");
   expect(html).not.toContain("最近 200 筆");
   expect(html).not.toContain("公布全部等級已登錄的成績");
   expect(html).not.toContain("可等批改完成後再操作");
   expect(html).not.toContain("新登分及更正都需要再次公布");
-  expect(html).toContain("公布全部學科成績");
+  expect(html).toContain("公布全部檢定成績");
   expect(html.indexOf('class="panel publication-panel"')).toBeLessThan(
     html.indexOf('aria-label="檢定等級"'),
   );
   expect(html.indexOf('aria-label="檢定等級"')).toBeLessThan(
-    html.indexOf("學科登分名單"),
+    html.indexOf("檢定登分名單"),
   );
   expect(html).toContain("機581115100401");
   expect(html).not.toContain("E101");
@@ -308,12 +308,15 @@ it("學科裁判名單的登分操作位於參賽編號左側", () => {
     "操作",
     "參賽編號",
     "姓名",
-    "目前分數（內部）",
-    "公開分數",
+    "學科（內部）",
+    "術科",
+    "檢定結果／公告",
   ]);
   const cells = [...table.matchAll(/<TableCell>([\s\S]*?)<\/TableCell>/g)];
   expect(cells[0][1]).toContain("<Button");
-  expect(cells[0][1]).toContain('{c.score === null ? "登分" : "修改"}');
+  expect(cells[0][1].replace(/\s+/g, " ")).toContain(
+    '{c.score === null && c.practical_completed == null ? "登分" : "修改"}',
+  );
   expect(cells[0][1]).toContain("disabled={busy || !online}");
   expect(cells[0][1]).toContain("setSelected(c)");
   expect(cells[1][1]).toBe("{c.number}");

@@ -44,6 +44,45 @@
   color: #815b19;
   font-size: 14px;
 }
+.practical-field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.practical-field legend {
+  margin-bottom: 8px;
+  font-weight: 650;
+}
+.practical-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.practical-options button {
+  min-height: 48px;
+}
+.practical-options button[aria-pressed="true"] {
+  background: #4338ca;
+  color: white;
+  border-color: #4338ca;
+}
+.exam-outcome {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+.exam-outcome.passed {
+  color: #11613d;
+  background: #dcfce7;
+}
+.exam-outcome.failed {
+  color: #991b1b;
+  background: #fee2e2;
+}
+.exam-outcome.pending {
+  color: #685411;
+  background: #fef3c7;
+}
 .academic-page table {
   font-size: 16px;
 }
@@ -608,7 +647,8 @@ a:focus-visible {
   }
 }
 .site-header {
-  height: 88px;
+  min-height: 88px;
+  height: auto;
   padding: 0 5.5%;
   background: #fff;
   border-bottom: 1px solid #e0e5dc;
@@ -648,6 +688,48 @@ a:focus-visible {
 .header-date {
   font-size: 12px;
   color: #63746a;
+}
+.event-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.event-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #ccd7cf;
+  border-radius: 10px;
+  background: #f5f7f3;
+  color: #173f35;
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.event-nav-button:hover {
+  background: #e7eee3;
+}
+.event-nav-button:focus-visible {
+  outline: 3px solid #709b59;
+  outline-offset: 2px;
+}
+.academic-theme .event-nav-button {
+  color: #373080;
+  border-color: #d7d3ee;
+  background: #f5f3ff;
+}
+.academic-theme .event-nav-button:hover {
+  background: #eae6ff;
+}
+.site-header .brand {
+  flex-shrink: 0;
+}
+.site-header .brand-caption {
+  white-space: nowrap;
 }
 .header-right button {
   height: 40px;
@@ -870,8 +952,21 @@ footer {
 }
 @media (max-width: 700px) {
   .site-header {
-    height: 75px;
-    padding: 0 20px;
+    height: auto;
+    padding: 14px 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .event-navigation {
+    width: 100%;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .event-nav-button {
+    padding: 8px 4px;
+    font-size: 13px;
   }
   .header-date {
     display: none;

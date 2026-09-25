@@ -1,3 +1,4 @@
+import { EventNavigation } from "./EventNavigation";
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,20 @@ import {
   type AcademicWorkspace,
 } from "./academic";
 
+function practicalLabel(value: boolean | null | undefined) {
+  return value == null ? "尚未登錄" : value ? "完成" : "未完成";
+}
+function examOutcome(
+  score: number | null,
+  practical: boolean | null | undefined,
+) {
+  return score === null || practical == null
+    ? "待確認"
+    : score >= 80 && practical
+      ? "通過"
+      : "未通過";
+}
+
 export default function AcademicApp({ staffView }: { staffView: boolean }) {
   const [session, setSession] = useState<Session | null>(null);
   const [staff, setStaff] = useState<Staff | null>(
@@ -68,6 +83,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
   const [importLevel, setImportLevel] = useState<AcademicLevel>(1);
   const [selected, setSelected] = useState<AcademicCandidate | null>(null);
   const [scoreText, setScoreText] = useState("");
+  const [practical, setPractical] = useState<boolean | null>(null);
   const [reason, setReason] = useState("");
   const [importRows, setImportRows] = useState<AcademicRosterRow[]>([]);
   const [importFeedback, setImportFeedback] = useState<{
@@ -295,10 +311,15 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
   }
   async function save() {
     if (!selected) return;
-    let value: number;
+    let value: number | null;
     try {
-      value = academicScore(scoreText);
-      if (selected.score !== null && !reason.trim())
+      value = scoreText.trim() ? academicScore(scoreText) : null;
+      if (value === null && practical === null)
+        throw new Error("請至少登錄學科或術科成績");
+      if (
+        (selected.score !== null || selected.practical_completed != null) &&
+        !reason.trim()
+      )
         throw new Error("請填寫修改原因");
     } catch (e) {
       setError((e as Error).message);
@@ -308,6 +329,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
       selected.id,
       selected.revision,
       value,
+      practical,
       reason,
     ]);
     if (saveReceipt.current.signature !== signature)
@@ -316,12 +338,13 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
       await saveAcademic({
         id: selected.id,
         score: value,
+        practical_completed: practical,
         reason,
         expected_revision: selected.revision,
         request_id: saveReceipt.current.id,
       });
       setSelected(null);
-    }, "學科成績已儲存，尚未新增至公開成績；請確認後統一公布。");
+    }, "檢定成績已儲存，尚未新增至公開成績；請確認後統一公布。");
   }
   return (
     <div className="academic-theme academic-shell">
@@ -339,29 +362,15 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
             TTRA<span className="brand-caption">2026 EXAMINATION</span>
           </span>
         </a>
-        <div className="header-right">
-          <a className="section-link" href="#/challenge">
-            挑戰賽專區
-          </a>
-          {staffView && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                location.hash = "/exam";
-              }}
-            >
-              家長看成績
-            </Button>
-          )}
-        </div>
+        <EventNavigation section="exam" staffView={staffView} />
       </header>
       <main className="page academic-page">
         <section className="page-intro">
           <div>
             <p className="eyebrow">2026 TTRA 機器人實作技能檢定</p>
-            <h1>{staffView ? "學科成績工作台" : "檢定學科成績"}</h1>
+            <h1>{staffView ? "檢定成績工作台" : "檢定成績"}</h1>
             <p className="muted">
-              學科成績 0–100 分 · 由裁判／評審確認後統一公布
+              學科 80 分（含）以上＋術科完成即通過，由評審統一公布
             </p>
           </div>
           <Button
@@ -425,11 +434,11 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                 <strong>{levelCandidates.length} 人</strong>
               </div>
               <div>
-                <span>已登分</span>
+                <span>已登學科</span>
                 <strong>{levelGraded} 人</strong>
               </div>
               <div>
-                <span>未登分</span>
+                <span>未登學科</span>
                 <strong>{levelCandidates.length - levelGraded} 人</strong>
               </div>
               <div>
@@ -450,7 +459,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                   {workspace?.publishedAt
                     ? "最近公布：" +
                       new Date(workspace.publishedAt).toLocaleString("zh-TW")
-                    : "尚未公布任何學科成績"}
+                    : "尚未公布任何檢定成績"}
                 </p>
               </div>
               <Button
@@ -465,7 +474,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                   })
                 }
               >
-                公布全部學科成績
+                公布全部檢定成績
               </Button>
             </section>
             <AcademicLevelTabs
@@ -481,7 +490,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
             )}
             <section className="panel">
               <div className="panel-heading">
-                <h2>{academicLevelName(level)} · 學科登分名單</h2>
+                <h2>{academicLevelName(level)} · 檢定登分名單</h2>
                 {!isDemoMode && (
                   <Button
                     variant="ghost"
@@ -510,8 +519,9 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                       <TableHead>操作</TableHead>
                       <TableHead>參賽編號</TableHead>
                       <TableHead>姓名</TableHead>
-                      <TableHead>目前分數（內部）</TableHead>
-                      <TableHead>公開分數</TableHead>
+                      <TableHead>學科（內部）</TableHead>
+                      <TableHead>術科</TableHead>
+                      <TableHead>檢定結果／公告</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -526,26 +536,39 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                               setScoreText(
                                 c.score === null ? "" : String(c.score),
                               );
+                              setPractical(c.practical_completed ?? null);
                               setReason("");
                               setError("");
                             }}
                           >
-                            {c.score === null ? "登分" : "修改"}
+                            {c.score === null && c.practical_completed == null
+                              ? "登分"
+                              : "修改"}
                           </Button>
                         </TableCell>
                         <TableCell>{c.number}</TableCell>
                         <TableCell>{c.name}</TableCell>
                         <TableCell>
                           {c.score === null ? "尚未登錄" : c.score + " 分"}
-                          {c.score !== c.published_score &&
+                          {(c.score !== c.published_score ||
+                            (c.practical_completed ?? null) !==
+                              (c.published_practical_completed ?? null)) &&
                             c.score !== null && (
                               <span className="academic-draft">待公布</span>
                             )}
                         </TableCell>
                         <TableCell>
-                          {c.published_score === null
-                            ? "尚未公布"
-                            : c.published_score + " 分"}
+                          {practicalLabel(c.practical_completed)}
+                        </TableCell>
+                        <TableCell>
+                          <strong>
+                            {examOutcome(c.score, c.practical_completed)}
+                          </strong>
+                          <div className="hint">
+                            {c.published_score === null
+                              ? "尚未公布"
+                              : `已公布：${examOutcome(c.published_score, c.published_practical_completed)}`}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -600,7 +623,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                   </p>
                   <p className="hint">
                     使用 UTF-8
-                    CSV，每列一位參賽者，只保留參賽編號、姓名。與挑戰賽名單分開管理。範本姓名為虛構；姓名與分數會在確認公布後公開。
+                    CSV，每列一位參賽者，只保留參賽編號、姓名。與挑戰賽名單分開管理。範本姓名為虛構；公布後只顯示遮罩姓名與結果，不公開學科實際分數。
                   </p>
                   <label className="field">
                     <span>學科名單 CSV</span>
@@ -686,7 +709,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
               {workspace?.audit.slice(0, 10).map((a) => (
                 <details className="audit-row" key={a.id}>
                   <summary>
-                    <strong>{a.number || "全部學科成績"}</strong>
+                    <strong>{a.number || "全部檢定成績"}</strong>
                     <span>
                       {(
                         {
@@ -726,7 +749,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
               )}
             />
             <div className="panel-heading">
-              <h2>{academicLevelName(level)} · 學科成績公告</h2>
+              <h2>{academicLevelName(level)} · 檢定成績公告</h2>
               <span>{publicData?.publishedAt ? "已公布" : "待公布"}</span>
             </div>
             {loading ? (
@@ -761,7 +784,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                     <TableRow>
                       <TableHead>參賽編號</TableHead>
                       <TableHead>姓名</TableHead>
-                      <TableHead>學科成績</TableHead>
+                      <TableHead>檢定成績</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -770,7 +793,21 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                         <TableCell>{r.number}</TableCell>
                         <TableCell>{r.name}</TableCell>
                         <TableCell>
-                          <strong>{r.passed ? "合格" : "不合格"}</strong>
+                          <strong
+                            className={`exam-outcome ${r.overall_passed === null ? "pending" : r.overall_passed ? "passed" : "failed"}`}
+                          >
+                            {r.overall_passed === null
+                              ? "待確認"
+                              : r.overall_passed
+                                ? "通過"
+                                : "未通過"}
+                          </strong>
+                          <div className="hint">
+                            學科：{r.passed ? "合格" : "不合格"}
+                          </div>
+                          <div className="hint">
+                            術科：{practicalLabel(r.practical_completed)}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -817,9 +854,46 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
               onChange={(e) => setScoreText(e.target.value)}
             />
           </label>
+          <fieldset className="practical-field">
+            <legend>術科成績</legend>
+            <div className="practical-options">
+              <Button
+                type="button"
+                variant="outline"
+                aria-pressed={practical === true}
+                disabled={busy}
+                onClick={() => setPractical(true)}
+              >
+                完成
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                aria-pressed={practical === false}
+                disabled={busy}
+                onClick={() => setPractical(false)}
+              >
+                未完成
+              </Button>
+            </div>
+            <p className="hint">
+              {practical === null
+                ? "尚未登錄，可先儲存檢定成績。"
+                : `已選擇：${practicalLabel(practical)}`}
+            </p>
+          </fieldset>
+          <p className="hint">
+            學科 80
+            分（含）以上且術科完成，檢定才通過。學科空白可先儲存術科，尚未登錄不視為
+            0 分。
+          </p>
           <label className="field">
             <span>
-              修改原因{selected?.score !== null ? "（必填）" : "（選填）"}
+              修改原因
+              {selected &&
+              (selected.score !== null || selected.practical_completed != null)
+                ? "（必填）"
+                : "（選填）"}
             </span>
             <Textarea
               aria-label="學科修改原因"
@@ -835,7 +909,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
             </p>
           )}
           <Button disabled={busy || !online} onClick={() => void save()}>
-            {busy ? "儲存中…" : "儲存學科成績"}
+            {busy ? "儲存中…" : "儲存檢定成績"}
           </Button>
         </DialogContent>
       </Dialog>
@@ -849,9 +923,10 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
           <DialogTitle>確認一次公布全部已登錄成績？</DialogTitle>
           <DialogDescription>
             本次包含全部等級，不受畫面篩選影響。 將公開{" "}
-            {publishConfirmation?.count} 人的姓名與分數。尚有{" "}
-            {publishConfirmation?.missing} 人未登分，不會將空白當成 0
-            分。家長會看到本次確認的成績。
+            {publishConfirmation?.count}{" "}
+            人的遮罩姓名、學科合格狀態、術科與檢定結果，不公開實際分數。尚有{" "}
+            {publishConfirmation?.missing}{" "}
+            人未登錄學科，本次不列入公告。已登學科但未登術科者顯示「待確認」。
           </DialogDescription>
           {error && (
             <p role="alert" className="error-message">
@@ -868,7 +943,7 @@ export default function AcademicApp({ staffView }: { staffView: boolean }) {
                     publishConfirmation.requestId,
                   );
                   setPublishConfirmation(null);
-                }, "本次學科成績已統一公布。");
+                }, "本次檢定成績已統一公布。");
             }}
           >
             {busy ? "公布中…" : "確認公布"}

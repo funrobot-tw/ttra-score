@@ -17,10 +17,14 @@ export type AcademicCandidate = AcademicRosterRow & {
   revision: number;
   updated_at: string;
   published_score: number | null;
+  practical_completed?: boolean | null;
+  published_practical_completed?: boolean | null;
 };
 export type AcademicResult = AcademicRosterRow & {
   id: string;
   passed: boolean;
+  practical_completed: boolean | null;
+  overall_passed: boolean | null;
   published_at: string;
 };
 // Also accepts the previous RPC shape during the staged frontend/backend update.
@@ -31,6 +35,7 @@ export function publicAcademicResult(
     published_at: string;
     passed?: boolean;
     score?: number;
+    practical_completed?: boolean | null;
   },
 ): AcademicResult {
   const passed =
@@ -48,6 +53,11 @@ export function publicAcademicResult(
     number: row.number,
     name: maskParticipantName(row.name),
     passed,
+    practical_completed: row.practical_completed ?? null,
+    overall_passed:
+      typeof row.practical_completed === "boolean"
+        ? passed && row.practical_completed
+        : null,
     published_at: row.published_at,
   };
 }
@@ -74,7 +84,8 @@ export type AcademicPublic = {
 };
 export type AcademicSave = {
   id: string;
-  score: number;
+  score: number | null;
+  practical_completed?: boolean | null;
   reason: string;
   expected_revision: number;
   request_id: string;
@@ -177,11 +188,28 @@ export class AcademicDemoStore {
     if (!c) throw new Error("找不到學科參賽者");
     if (c.revision !== input.expected_revision)
       throw new Error("成績已被更新，請重新載入後核對");
-    if (c.score !== null && !input.reason.trim())
+    if (
+      (c.score !== null || c.practical_completed != null) &&
+      !input.reason.trim()
+    )
       throw new Error("請填寫修改原因");
-    const score = academicScore(String(input.score));
+    const score =
+      input.score === null ? null : academicScore(String(input.score));
+    const practical =
+      input.practical_completed === undefined
+        ? (c.practical_completed ?? null)
+        : input.practical_completed;
+    if (practical !== null && typeof practical !== "boolean")
+      throw new Error("術科狀態不正確");
+    if (score === null && practical === null)
+      throw new Error("請至少登錄學科或術科成績");
+    if (c.score !== null && score === null)
+      throw new Error("已登錄學科不可清空");
+    if (typeof c.practical_completed === "boolean" && practical === null)
+      throw new Error("已登錄術科不可清空");
     const before = structuredClone(c);
     c.score = score;
+    c.practical_completed = practical;
     c.revision++;
     c.updated_at = new Date().toISOString();
     this.audit("score", c.number, input.reason, before, c);
@@ -206,11 +234,15 @@ export class AcademicDemoStore {
           number: c.number,
           name: c.name,
           score: c.score!,
+          practical_completed: c.practical_completed ?? null,
           published_at: stamp,
         }),
       ),
     };
-    for (const c of graded) c.published_score = c.score;
+    for (const c of graded) {
+      c.published_score = c.score;
+      c.published_practical_completed = c.practical_completed ?? null;
+    }
     this.workspace.publishedAt = stamp;
     this.audit("publish", undefined, "", undefined, {
       count: graded.length,

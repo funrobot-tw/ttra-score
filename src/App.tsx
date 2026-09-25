@@ -1,3 +1,4 @@
+import { EventNavigation } from "./EventNavigation";
 import {
   useCallback,
   useEffect,
@@ -7,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  ArrowUpRight,
   Radio,
   Trophy,
   Users,
@@ -578,23 +578,7 @@ export default function App() {
             TTRA<span className="brand-caption">2026 CHALLENGE</span>
           </span>
         </a>
-        <div className="header-right">
-          <a className="section-link" href="#/exam">
-            檢定專區
-          </a>
-          <span className="header-date">10.04 SUN · 臺中清水高中</span>
-          {route === "staff" && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                location.hash = "/challenge";
-              }}
-            >
-              家長看成績
-              <ArrowUpRight />
-            </Button>
-          )}
-        </div>
+        <EventNavigation section="challenge" staffView={route === "staff"} />
       </header>
       <main
         className={`page ${route === "public" ? "public-page" : "staff-page"}`}
