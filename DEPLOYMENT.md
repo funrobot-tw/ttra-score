@@ -92,3 +92,9 @@ Linkt 放入兩個家長端連結：
 已有成績的參賽者不能直接撤銷報到，需由管理員先處理成績。
 取消資格、重賽等非常態事件由主辦人裁決，本版不自動處理。
 PGlite 測試不取代正式 Supabase 密碼登入、JWT、Realtime、公網延遲驗證。
+
+## 程式組撞牆原因（017）
+
+先套用 `supabase/migrations/017_program_wall_collision.sql`，再部署前端。
+只在程式機械組的未完成原因新增「車體撞牆」，不改動已儲存成績、排名、其他組別或時限。
+正式專案目前的 `challenge_attempts_locked` 成績鎖定維持啟用；此更新不解鎖。

@@ -49,7 +49,7 @@ export type AttemptStatus = "valid" | "invalid" | "terminated";
 export const failureReasons: Record<CategoryId, string[]> = {
   preschool: [],
   power: ["超過邊界", "車體鬆脫", "飲料罐掉落"],
-  program: ["超過邊界", "車體鬆脫", "飲料罐掉落"],
+  program: ["超過邊界", "車體鬆脫", "飲料罐掉落", "車體撞牆"],
   creative: ["車體掉出場地", "零件脫落", "翻覆"],
 };
 export type Attempt = {

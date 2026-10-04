@@ -99,6 +99,7 @@ beforeAll(async () => {
     "012_academic_public_privacy.sql",
     "013_program_time_and_failure_reasons.sql",
     "015_dual_score_confirmation.sql",
+    "017_program_wall_collision.sql",
   ])
     await db.exec(
       readFileSync(
@@ -520,6 +521,45 @@ describe("挑戰賽新版規則、飲料與公告", () => {
           }),
         ).rejects.toThrow();
     }
+  });
+  it("車體撞牆僅程式組可記錄，保留實際秒數且不計有效成績", async () => {
+    const id = await createTeam("program");
+    const saved = await submit({
+      ...input(id, "program", "round-1", {
+        weight: 100,
+        seconds: 40,
+        failureReason: "車體撞牆",
+      }),
+      status: "invalid",
+      reason: "車體撞牆",
+    });
+    expect(saved.score_data).toMatchObject({
+      completed: 0,
+      seconds: 40,
+      failureReason: "車體撞牆",
+    });
+    const { rows } = await db.query(
+      "select * from public.results where team_id=$1",
+      [id],
+    );
+    expect(rows[0].primary_score).toBeNull();
+    await asUser(null, "postgres");
+    for (const category of ["power", "creative", "preschool"])
+      await expect(
+        db.query("select private.normalize_score($1,'invalid',$2::jsonb)", [
+          category,
+          JSON.stringify({
+            bottles: 2,
+            weight: 100,
+            failureReason: "車體撞牆",
+          }),
+        ]),
+      ).rejects.toThrow();
+    const normalized = await db.query(
+      "select private.normalize_score('program','invalid',$1::jsonb) value",
+      [JSON.stringify({ weight: 100, failureReason: "車體撞牆" })],
+    );
+    expect(normalized.rows[0].value).not.toHaveProperty("seconds");
   });
   it("程式上限 25 秒，新增掉罐原因且未完成秒數不受限", async () => {
     const normalize = async (category: string, status: string, data: object) =>
