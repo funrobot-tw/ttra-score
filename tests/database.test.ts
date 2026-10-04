@@ -538,7 +538,7 @@ describe("挑戰賽新版規則、飲料與公告", () => {
       seconds: 40,
       failureReason: "車體撞牆",
     });
-    const { rows } = await db.query(
+    const { rows } = await db.query<{ primary_score: number | null }>(
       "select * from public.results where team_id=$1",
       [id],
     );
@@ -555,7 +555,7 @@ describe("挑戰賽新版規則、飲料與公告", () => {
           }),
         ]),
       ).rejects.toThrow();
-    const normalized = await db.query(
+    const normalized = await db.query<{ value: Record<string, unknown> }>(
       "select private.normalize_score('program','invalid',$1::jsonb) value",
       [JSON.stringify({ weight: 100, failureReason: "車體撞牆" })],
     );
