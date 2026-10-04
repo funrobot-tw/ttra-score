@@ -217,38 +217,41 @@ describe("非瀏覽器渲染檢查", () => {
       expect(html).not.toContain("提前終止");
       if (c.id === "preschool") expect(html).not.toContain("回合狀態");
     });
-  it("程式未完成下拉選單包含車體撞牆", () => {
-    const html = renderToString(
-      <ScoreForm
-        team={{
-          id: "x",
-          number: "程A001",
-          name: "王小明",
-          categoryId: "program",
-          heat: 1,
-          checkinStatus: "checked_in",
-          checkedInAt: null,
-        }}
-        attempts={[
-          {
-            id: "a",
-            teamId: "x",
+  it.each(["車體撞牆", "超過時間", "提早折返"])(
+    "程式未完成下拉選單包含 %s",
+    (failureReason) => {
+      const html = renderToString(
+        <ScoreForm
+          team={{
+            id: "x",
+            number: "程A001",
+            name: "王小明",
             categoryId: "program",
-            slotKey: "round-1",
-            attemptNo: 1,
-            status: "invalid",
-            data: { weight: 100, failureReason: "車體撞牆" },
-            submittedAt: "",
-            revision: 1,
-          },
-        ]}
-        onSave={async () => {}}
-        disabled={false}
-      />,
-    );
-    expect(html).toContain('value="車體撞牆"');
-    expect(html).toContain("未完成原因");
-  });
+            heat: 1,
+            checkinStatus: "checked_in",
+            checkedInAt: null,
+          }}
+          attempts={[
+            {
+              id: "a",
+              teamId: "x",
+              categoryId: "program",
+              slotKey: "round-1",
+              attemptNo: 1,
+              status: "invalid",
+              data: { weight: 100, failureReason },
+              submittedAt: "",
+              revision: 1,
+            },
+          ]}
+          onSave={async () => {}}
+          disabled={false}
+        />,
+      );
+      expect(html).toContain(`value="${failureReason}"`);
+      expect(html).toContain("未完成原因");
+    },
+  );
   it("未完成表單保留數字欄位且只提供本組原因，秒數沒有時限上限", () => {
     const html = renderToString(
       <ScoreForm
@@ -282,6 +285,8 @@ describe("非瀏覽器渲染檢查", () => {
     expect(html).toContain("車體鬆脫");
     expect(html).not.toContain("翻覆");
     expect(html).not.toContain("車體撞牆");
+    expect(html).not.toContain("超過時間");
+    expect(html).not.toContain("提早折返");
     expect(html).toContain("實際秒數（可留空）");
     expect(html).toContain('value="51.5"');
     expect(html).not.toContain('max="30"');

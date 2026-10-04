@@ -91,35 +91,38 @@ describe("四組規則", () => {
       ]).primary,
     ).toBeNull();
   });
-  it("車體撞牆僅限程式組，未完成可留空秒數或保留超時秒數", () => {
-    expect(failureReasons.program).toContain("車體撞牆");
-    for (const category of ["power", "preschool", "creative"] as const)
-      expect(failureReasons[category]).not.toContain("車體撞牆");
-    for (const seconds of [undefined, 40])
+  it.each(["車體撞牆", "超過時間", "提早折返"])(
+    "%s 僅限程式組，未完成可留空秒數或保留超時秒數",
+    (failureReason) => {
+      expect(failureReasons.program).toContain(failureReason);
+      for (const category of ["power", "preschool", "creative"] as const)
+        expect(failureReasons[category]).not.toContain(failureReason);
+      for (const seconds of [undefined, 40])
+        expect(
+          validateScore(
+            "program",
+            "invalid",
+            {
+              weight: 100,
+              failureReason,
+              ...(seconds === undefined ? {} : { seconds }),
+            },
+            "",
+          ),
+        ).toBeNull();
       expect(
         validateScore(
-          "program",
+          "power",
           "invalid",
           {
-            weight: 100,
-            failureReason: "車體撞牆",
-            ...(seconds === undefined ? {} : { seconds }),
+            bottles: 2,
+            failureReason,
           },
           "",
         ),
-      ).toBeNull();
-    expect(
-      validateScore(
-        "power",
-        "invalid",
-        {
-          bottles: 2,
-          failureReason: "車體撞牆",
-        },
-        "",
-      ),
-    ).not.toBeNull();
-  });
+      ).not.toBeNull();
+    },
+  );
   it("飲料罐掉落只新增於動力及程式的未完成原因", () => {
     expect(failureReasons.power).toContain("飲料罐掉落");
     expect(failureReasons.program).toContain("飲料罐掉落");
