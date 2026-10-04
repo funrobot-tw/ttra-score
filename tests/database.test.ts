@@ -40,6 +40,12 @@ async function createTeam(category = "power", number?: string, heat = 1) {
     [number],
   );
   await db.query("select public.set_checkin($1,'checked_in')", [rows[0].id]);
+  await asUser(null, "postgres");
+  await db.query(
+    "update public.teams set checked_in_at='2026-10-04 09:00:00+08' where id=$1",
+    [rows[0].id],
+  );
+  await asUser(admin);
   return rows[0].id;
 }
 function input(
@@ -101,6 +107,7 @@ beforeAll(async () => {
     "015_dual_score_confirmation.sql",
     "017_program_wall_collision.sql",
     "018_program_timeout_reason.sql",
+    "019_program_checkin_ranking.sql",
   ])
     await db.exec(
       readFileSync(

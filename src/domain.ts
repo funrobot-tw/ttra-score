@@ -286,6 +286,7 @@ export function leaderboard(
     }
   >();
   return base.map((r) => {
+    if (isLateProgramCheckin(r.team)) return { ...r, rank: null };
     const state = heatRanks.get(r.team.heat) ?? {
       lastRank: 0,
       position: 0,
@@ -310,6 +311,16 @@ export function leaderboard(
           : state.lastRank,
     };
   });
+}
+// Event-day deadlines in Taiwan time; equality is on time. Missing timestamps
+// are not inferred to be late. This affects rank only, never recorded scores.
+export function isLateProgramCheckin(team: Team): boolean {
+  if (team.categoryId !== "program" || !team.checkedInAt) return false;
+  const cutoff = ["09:30", "10:30", "11:50"][team.heat - 1];
+  return (
+    !!cutoff &&
+    Date.parse(team.checkedInAt) > Date.parse(`2026-10-04T${cutoff}:00+08:00`)
+  );
 }
 export const slotOptions = (category: CategoryId) =>
   category === "power"

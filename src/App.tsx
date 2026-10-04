@@ -45,6 +45,7 @@ import {
   attemptSummary,
   maskParticipantName,
   challengeStatus,
+  isLateProgramCheckin,
   type Team,
   type Attempt,
   type CategoryId,
@@ -92,7 +93,7 @@ const rules: Record<CategoryId, string> = {
   power:
     "拉動與推動各取瓶數最多的一次，同瓶數取較短時間。拉推皆有有效成績且至少一次達7瓶才合格；缺少有效方向不列合計排名。",
   program:
-    "兩次取最快有效成績，時間相同以車頭淨重較輕者優先。25 秒內完成即合格，超過 25 秒記為未完成。",
+    "兩次取最快有效成績，時間相同以車頭淨重較輕者優先。25 秒內完成即合格，超過 25 秒記為未完成。第一梯 09:30、第二梯 10:30、第三梯 11:50 後報到者不列入名次計算，成績仍保留。",
   creative:
     "每次限時 40 秒，到時保留得分。普通瓶 10 分，特殊瓶正確 20 分、錯誤 5 分。取最高單次，同分取耗時較短。50 分以上合格。",
 };
@@ -1097,6 +1098,12 @@ export default function App() {
                                             {attemptCount}/
                                             {slotOptions(group).length} 回合
                                           </small>
+                                          {route === "staff" &&
+                                            isLateProgramCheckin(r.team) && (
+                                              <small className="muted">
+                                                逾時報到，不列入排名
+                                              </small>
+                                            )}
                                         </div>
                                         <div className="result-numbers">
                                           {group === "preschool" &&

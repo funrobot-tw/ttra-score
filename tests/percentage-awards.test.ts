@@ -64,6 +64,67 @@ afterAll(async () => {
 
 describe("自動前50%佳作（完整最新資料庫）", () => {
   it.each([
+    [1, "09:30"],
+    [2, "10:30"],
+    [3, "11:50"],
+  ] as const)(
+    "第 %i 梯截止 %s：逾時者排除排名與新公告，但成績及舊公告不變",
+    async (heat, cutoff) => {
+      await entrants(8, heat);
+      const preview = await rpc("preview_awards", ["program", heat]);
+      await rpc("publish_awards", [
+        "program",
+        heat,
+        preview.version,
+        preview.settings_revision,
+        crypto.randomUUID(),
+      ]);
+      const published = await rpc("get_awards");
+      await db.exec("reset role");
+      const before = (
+        await db.query("select * from public.attempts order by id")
+      ).rows;
+      await db.query(
+        `update public.teams set checked_in_at=$1::timestamptz + case when right(team_number,3)='001' then interval '1 second' else interval '0 seconds' end where category_id='program' and heat=$2`,
+        [`2026-10-04 ${cutoff}:00+08`, heat],
+      );
+      const rows = (
+        await db.query<{
+          number: string;
+          rank: number | null;
+          primary_score: string;
+          qualified: boolean;
+        }>(
+          "select t.team_number as number,r.rank,r.primary_score,r.qualified from public.results r join public.teams t on t.id=r.team_id order by t.team_number",
+        )
+      ).rows;
+      expect(rows.map((r) => r.rank)).toEqual([null, 1, 2, 3, 4, 5, 6, 7]);
+      expect(rows[0]).toMatchObject({ primary_score: "5.5", qualified: true });
+      expect(
+        (await db.query("select * from public.attempts order by id")).rows,
+      ).toEqual(before);
+      await asAdmin();
+      const next = await rpc("preview_awards", ["program", heat]);
+      expect(next).toMatchObject({ entrant_count: 8, merit_quota: 1 });
+      expect(next.entries.map((e: any) => e.number.slice(-3))).toEqual([
+        "002",
+        "003",
+        "004",
+        "005",
+      ]);
+      expect(await rpc("get_awards")).toEqual(published);
+      await expect(
+        rpc("publish_awards", [
+          "program",
+          heat,
+          preview.version,
+          preview.settings_revision,
+          crypto.randomUUID(),
+        ]),
+      ).rejects.toThrow("重新預覽");
+    },
+  );
+  it.each([
     [20, 7],
     [15, 5],
     [6, 0],

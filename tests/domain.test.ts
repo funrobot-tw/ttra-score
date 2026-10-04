@@ -13,6 +13,7 @@ import {
   challengeStatus,
   attemptSummary,
   failureReasons,
+  isLateProgramCheckin,
   type Team,
   type Attempt,
   type CategoryId,
@@ -34,6 +35,52 @@ const team = (categoryId: CategoryId, id = "1"): Team => ({
   heat: 1,
   checkinStatus: "checked_in",
   checkedInAt: "2026-10-04T01:00:00Z",
+});
+describe("程式組報到截止與排名", () => {
+  it.each([
+    [1, "09:30"],
+    [2, "10:30"],
+    [3, "11:50"],
+  ] as const)("第 %i 梯 %s 截止，保留成績且名次不留空缺", (heat, cutoff) => {
+    const onTime = {
+      ...team("program", "on"),
+      heat,
+      checkedInAt: `2026-10-04T${cutoff}:00+08:00`,
+    };
+    const late = {
+      ...onTime,
+      id: "late",
+      checkedInAt: `2026-10-04T${cutoff}:01+08:00`,
+    };
+    expect(isLateProgramCheckin(onTime)).toBe(false);
+    expect(isLateProgramCheckin(late)).toBe(true);
+    expect(
+      isLateProgramCheckin({
+        ...late,
+        checkedInAt: new Date(late.checkedInAt).toISOString(),
+      }),
+    ).toBe(true);
+    expect(isLateProgramCheckin({ ...late, categoryId: "power" })).toBe(false);
+    expect(isLateProgramCheckin({ ...late, checkedInAt: null })).toBe(false);
+    const entrants = [
+      late,
+      onTime,
+      { ...onTime, id: "tie" },
+      { ...onTime, id: "third" },
+    ];
+    const scores = entrants.map((t, i) =>
+      attempt(
+        "program",
+        { completed: 1, seconds: i === 0 ? 5 : i === 3 ? 12 : 10, weight: 100 },
+        "round-1",
+        "valid",
+        t.id,
+      ),
+    );
+    const result = leaderboard(entrants, scores, "program");
+    expect(result.map((r) => r.rank)).toEqual([null, 1, 1, 3]);
+    expect(result[0]).toMatchObject({ primary: 5, qualified: true });
+  });
 });
 const attempt = (
   categoryId: CategoryId,
